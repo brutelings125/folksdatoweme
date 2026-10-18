@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Utang Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#08090a; --surface:#0f1011; --surface-2:#141516; --line:#232527; --line-2:#2e3134;
+  --text:#ededee; --muted:#8a8f98; --faint:#5b6068;
+  --red:#ff5d6c; --red-bg:rgba(255,93,108,.09); --red-line:rgba(255,93,108,.28);
+  --green:#3ddc97; --green-bg:rgba(61,220,151,.09); --green-line:rgba(61,220,151,.28);
+  --amber:#f5b54a;
+  --sans:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+body::before{content:"";position:fixed;inset:0 0 auto;height:420px;background:radial-gradient(60% 100% at 50% 0,rgba(255,93,108,.07),transparent 70%);pointer-events:none}
+.wrap{position:relative;max-width:880px;margin:0 auto;padding:40px 20px 80px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:28px}
+h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:13px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+
+/* Dashboard */
+.dash{display:grid;grid-template-columns:2fr 1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:20px}
+.stat{background:var(--surface);padding:22px 24px}
+.stat .k{color:var(--muted);font-size:13px}
+.stat .v{font-family:var(--mono);font-weight:600;font-size:30px;letter-spacing:-.03em;margin-top:6px;font-variant-numeric:tabular-nums}
+.stat.main .v{font-size:44px;color:var(--red)}
+.stat.main .v.zero{color:var(--green)}
+.stat .v.g{color:var(--green)}
+
+/* Form */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:28px}
+.panel h2{margin:0 0 14px;font-size:14px;font-weight:600}
+form{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.f label{font-size:12px;color:var(--muted)}
+.f.name{grid-column:span 2}.f.amt{grid-column:span 1}.f.date{grid-column:span 1}.f.due{grid-column:span 2}.f.reason{grid-column:span 4}
+input{background:var(--bg);border:1px solid var(--line-2);border-radius:8px;padding:9px 12px;width:100%;transition:border-color .15s,box-shadow .15s}
+input::placeholder{color:var(--faint)}
+input:hover{border-color:#3a3e42}
+input:focus{outline:none;border-color:var(--muted);box-shadow:0 0 0 3px rgba(255,255,255,.06)}
+input.bad{border-color:var(--red);box-shadow:0 0 0 3px var(--red-bg)}
+input[type=date]{color-scheme:dark}
+.submit{grid-column:span 2;align-self:end;background:var(--text);color:#000;border:0;border-radius:8px;padding:10px 14px;font-weight:600;transition:opacity .15s,transform .1s}
+.submit:hover{opacity:.88}.submit:active{transform:scale(.98)}
+.err{grid-column:1/-1;color:var(--red);font-size:13px;min-height:0;margin:0}
+.err:empty{display:none}
+.hint{grid-column:1/-1;color:var(--green);font-size:13px;margin:0}
+.hint:empty{display:none}
+
+/* Toolbar */
+.bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;flex-wrap:wrap}
+.bar h2{margin:0;font-size:14px;font-weight:600}
+.tools{display:flex;gap:8px}
+.ghost{background:transparent;border:1px solid var(--line-2);color:var(--muted);border-radius:8px;padding:6px 11px;font-size:12.5px;transition:all .15s}
+.ghost:hover{color:var(--text);border-color:#454a4f;background:var(--surface-2)}
+.ghost.armed{color:var(--red);border-color:var(--red);background:var(--red-bg)}
+.ghost.danger:hover{color:var(--red);border-color:var(--red-line)}
+
+/* Person cards */
+.cards{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:border-color .2s}
+.card:hover{border-color:var(--line-2)}
+.card.clear{opacity:.72}
+.ch{display:flex;align-items:center;gap:14px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:600;background:var(--red-bg);color:var(--red);border:1px solid var(--red-line);flex:none}
+.card.clear .av{background:var(--green-bg);color:var(--green);border-color:var(--green-line)}
+.who{flex:1;min-width:0}
+.who b{display:block;font-size:16px;font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who span{color:var(--muted);font-size:12.5px}
+.tot{text-align:right}
+.tot .n{font-family:var(--mono);font-weight:600;font-size:22px;color:var(--red);letter-spacing:-.02em;font-variant-numeric:tabular-nums;transition:color .2s}
+.card.clear .tot .n{color:var(--green)}
+.tot .l{color:var(--muted);font-size:12px}
+.loans{list-style:none;margin:0;padding:0}
+.loan{display:grid;grid-template-columns:96px 120px 1fr auto;gap:14px;align-items:center;padding:13px 20px;border-bottom:1px solid var(--line);transition:background .15s}
+.loan:last-child{border-bottom:0}
+.loan:hover{background:var(--surface-2)}
+.amt-c{font-family:var(--mono);font-weight:600;color:var(--red);font-variant-numeric:tabular-nums}
+.date-c{color:var(--muted);font-size:13px}
+.why{min-width:0;overflow-wrap:anywhere}
+.due{display:inline-block;margin-left:8px;font-size:11.5px;padding:1px 8px;border-radius:99px;border:1px solid var(--line-2);color:var(--muted);white-space:nowrap}
+.due.late{color:var(--red);border-color:var(--red-line);background:var(--red-bg)}
+.acts{display:flex;gap:6px;align-items:center;justify-content:flex-end}
+.settle{background:var(--green-bg);color:var(--green);border:1px solid var(--green-line);border-radius:8px;padding:6px 14px;font-weight:600;font-size:12.5px;transition:all .15s}
+.settle:hover{background:var(--green);color:#04110b}
+.x{background:transparent;border:1px solid transparent;color:var(--faint);border-radius:8px;width:30px;height:30px;font-size:15px;line-height:1;transition:all .15s}
+.x:hover{color:var(--red);border-color:var(--red-line);background:var(--red-bg)}
+.x.armed{color:var(--red);border-color:var(--red);width:auto;padding:0 10px;font-size:12px}
+.loan.paid .amt-c,.loan.paid .date-c,.loan.paid .why{color:var(--faint);text-decoration:line-through;text-decoration-color:var(--green)}
+.loan.paid .amt-c{color:var(--green)}
+.badge{color:var(--green);font-size:12.5px;font-weight:600;padding:0 6px}
+.undo{background:none;border:0;color:var(--muted);font-size:12px;text-decoration:underline;padding:4px}
+.undo:hover{color:var(--text)}
+.empty{border:1px dashed var(--line-2);border-radius:14px;padding:44px 20px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--text);margin-bottom:4px}
+
+@media(max-width:700px){
+  .dash{grid-template-columns:1fr 1fr}.stat.main{grid-column:1/-1}
+  form{grid-template-columns:1fr 1fr}
+  .f.name,.f.reason,.f.due,.submit{grid-column:1/-1}.f.amt,.f.date{grid-column:span 1}
+  .loan{grid-template-columns:1fr auto;grid-template-areas:"a d" "w w" "x x";gap:6px 12px}
+  .amt-c{grid-area:a}.date-c{grid-area:d;text-align:right}.why{grid-area:w}.acts{grid-area:x;justify-content:flex-start;margin-top:4px}
+  .stat.main .v{font-size:36px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Utang Tracker</h1>
+    <span class="sub" id="today"></span>
+  </header>
+
+  <section class="dash" aria-label="Summary">
+    <div class="stat main"><div class="k">Total collectibles</div><div class="v" id="sTotal">₱0</div></div>
+    <div class="stat"><div class="k">Active borrowers</div><div class="v" id="sPeople">0</div></div>
+    <div class="stat"><div class="k">Already settled</div><div class="v g" id="sPaid">₱0</div></div>
+  </section>
+
+  <section class="panel">
+    <h2>Log a loan</h2>
+    <form id="form" novalidate autocomplete="off">
+      <div class="f name"><label for="name">Borrower</label><input id="name" list="names" placeholder="Name"></div>
+      <div class="f amt"><label for="amount">Amount (₱)</label><input id="amount" type="number" min="1" step="any" inputmode="decimal" placeholder="0"></div>
+      <div class="f date"><label for="date">Date borrowed</label><input id="date" type="date"></div>
+      <div class="f due"><label for="due">Due date (optional)</label><input id="due" type="date"></div>
+      <div class="f reason"><label for="reason">Reason</label><input id="reason" placeholder="What was it for?"></div>
+      <button class="submit" type="submit">Add loan</button>
+      <p class="err" id="err" role="alert"></p>
+      <p class="hint" id="hint"></p>
+      <datalist id="names"></datalist>
+    </form>
+  </section>
+
+  <div class="bar">
+    <h2>Borrowers</h2>
+    <div class="tools">
+      <button class="ghost" id="clearPaid" type="button">Clear paid loans</button>
+      <button class="ghost danger" id="resetAll" type="button">Delete everything</button>
+    </div>
+  </div>
+  <div class="cards" id="cards"></div>
+</div>
+
+<script>
+const KEY = "utang-tracker-v1";
+const $ = id => document.getElementById(id);
+const peso = n => "₱" + Number(n).toLocaleString("en-PH", {maximumFractionDigits: 2});
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const parse = iso => { const [y,m,d] = iso.split("-").map(Number); return new Date(y, m-1, d); };
+const fmt = iso => iso ? parse(iso).toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"}) : "No date";
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+
+const L = (amount, date, reason, due) => ({id: uid(), amount, date, reason, due: due || "", paid: false});
+const seed = () => [
+  {id: uid(), name: "Caesar",  loans: [L(180, "2026-10-18", "Needs to buy something", "2026-11-01")]},
+  {id: uid(), name: "Keira",   loans: [L(86,  "2026-10-10", "Fruit gummy mix, DCC")]},
+  {id: uid(), name: "Seth",    loans: [L(40,  "2026-10-12", "J-mart")]},
+  {id: uid(), name: "Carina",  loans: [L(30,  "2026-10-02", "Class funds")]},
+  {id: uid(), name: "Kaycee",  loans: [L(20,  "2026-10-10", "Class Penalty")]},
+  {id: uid(), name: "Karl",    loans: [L(20,  "2026-10-17", "Payment for cheescake")]},
+  {id: uid(), name: "Lance",   loans: [L(10,  "2026-10-16", "Tricycle fare or jeep idk")]}
+];
+
+let data;
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw === null) { data = seed(); save(); return; }
+    const p = JSON.parse(raw);
+    data = Array.isArray(p) ? p : seed();
+  } catch (e) { data = seed(); }
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
+
+const unpaid = p => p.loans.filter(l => !l.paid).reduce((s, l) => s + l.amount, 0);
+
+/* Two-step confirm: first click arms the button, second click within 3s confirms */
+const armed = new Map();
+function confirmTwice(key, el, armedLabel, action) {
+  if (armed.has(key)) { clearTimeout(armed.get(key)); armed.delete(key); action(); return; }
+  const orig = el.textContent;
+  el.textContent = armedLabel; el.classList.add("armed");
+  armed.set(key, setTimeout(() => { armed.delete(key); el.textContent = orig; el.classList.remove("armed"); }, 3000));
+}
+
+function render() {
+  const sorted = [...data].sort((a, b) => unpaid(b) - unpaid(a) || a.name.localeCompare(b.name));
+  const total = data.reduce((s, p) => s + unpaid(p), 0);
+  const paid = data.reduce((s, p) => s + p.loans.filter(l => l.paid).reduce((x, l) => x + l.amount, 0), 0);
+  $("sTotal").textContent = peso(total);
+  $("sTotal").classList.toggle("zero", total === 0);
+  $("sPeople").textContent = data.filter(p => unpaid(p) > 0).length;
+  $("sPaid").textContent = peso(paid);
+  $("names").innerHTML = data.map(p => `<option value="${esc(p.name)}">`).join("");
+  $("today").textContent = new Date().toLocaleDateString("en-US", {weekday:"long", month:"long", day:"numeric"});
+
+  if (!sorted.length) {
+    $("cards").innerHTML = `<div class="empty"><b>No one owes you anything</b>Log a loan above to start tracking.</div>`;
+    return;
+  }
+  const t0 = todayISO();
+  $("cards").innerHTML = sorted.map(p => {
+    const u = unpaid(p), open = p.loans.filter(l => !l.paid).length;
+    const loans = [...p.loans].sort((a, b) => a.paid - b.paid || b.date.localeCompare(a.date)).map(l => {
+      const late = l.due && !l.paid && l.due < t0;
+      const due = l.due ? `<span class="due${late ? " late" : ""}">${late ? "Overdue · " : "Due "}${fmt(l.due)}</span>` : "";
+      return `<li class="loan${l.paid ? " paid" : ""}">
+        <div class="amt-c">${peso(l.amount)}</div>
+        <div class="date-c">${fmt(l.date)}</div>
+        <div class="why">${esc(l.reason || "No reason given")}${due}</div>
+        <div class="acts">
+          ${l.paid
+            ? `<span class="badge">Paid</span><button class="undo" data-act="undo" data-p="${p.id}" data-l="${l.id}">Undo</button>`
+            : `<button class="settle" data-act="settle" data-p="${p.id}" data-l="${l.id}">Settle</button>`}
+          <button class="x" data-act="del" data-p="${p.id}" data-l="${l.id}" title="Delete this loan" aria-label="Delete loan">✕</button>
+        </div></li>`;
+    }).join("");
+    return `<article class="card${u === 0 ? " clear" : ""}">
+      <div class="ch">
+        <div class="av">${esc(p.name.charAt(0).toUpperCase())}</div>
+        <div class="who"><b>${esc(p.name)}</b><span>${u === 0 ? "All settled" : open + (open === 1 ? " unpaid loan" : " unpaid loans")} · ${p.loans.length} total</span></div>
+        <div class="tot"><div class="n">${peso(u)}</div><div class="l">${u === 0 ? "Nothing owed" : "Total unpaid"}</div></div>
+        <button class="x" data-act="delp" data-p="${p.id}" title="Delete borrower" aria-label="Delete borrower">✕</button>
+      </div>
+      <ul class="loans">${loans}</ul></article>`;
+  }).join("");
+}
+
+/* Card actions */
+$("cards").addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const p = data.find(x => x.id === b.dataset.p); if (!p) return;
+  const l = p.loans.find(x => x.id === b.dataset.l);
+  const act = b.dataset.act;
+  if (act === "settle" && l) { l.paid = true; save(); render(); }
+  else if (act === "undo" && l) { l.paid = false; save(); render(); }
+  else if (act === "del" && l) confirmTwice("l" + l.id, b, "Delete?", () => {
+    p.loans = p.loans.filter(x => x.id !== l.id);
+    if (!p.loans.length) data = data.filter(x => x.id !== p.id);
+    save(); render();
+  });
+  else if (act === "delp") confirmTwice("p" + p.id, b, "Delete all?", () => { data = data.filter(x => x.id !== p.id); save(); render(); });
+});
+
+$("clearPaid").addEventListener("click", e => {
+  if (!data.some(p => p.loans.some(l => l.paid))) return;
+  confirmTwice("cp", e.currentTarget, "Click to confirm", () => {
+    data.forEach(p => p.loans = p.loans.filter(l => !l.paid));
+    data = data.filter(p => p.loans.length);
+    save(); render(); $("clearPaid").textContent = "Clear paid loans"; $("clearPaid").classList.remove("armed");
+  });
+});
+$("resetAll").addEventListener("click", e => {
+  confirmTwice("all", e.currentTarget, "Click to confirm", () => {
+    data = []; save(); render(); $("resetAll").textContent = "Delete everything"; $("resetAll").classList.remove("armed");
+  });
+});
+
+/* Form */
+$("form").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = $("name").value.trim().replace(/\s+/g, " ");
+  const amount = parseFloat($("amount").value);
+  const date = $("date").value || todayISO();
+  const due = $("due").value;
+  const reason = $("reason").value.trim();
+  ["name","amount"].forEach(i => $(i).classList.remove("bad"));
+  $("hint").textContent = "";
+  const errs = [];
+  if (!name) { errs.push("Enter the borrower’s name."); $("name").classList.add("bad"); }
+  if (!(amount > 0) || !isFinite(amount)) { errs.push("Enter an amount greater than ₱0."); $("amount").classList.add("bad"); }
+  if (due && due < date) { errs.push("The due date can’t be before the borrowed date."); $("due").classList.add("bad"); }
+  $("err").textContent = errs.join(" ");
+  if (errs.length) return;
+  $("due").classList.remove("bad");
+
+  const loan = {id: uid(), amount: Math.round(amount * 100) / 100, date, reason, due, paid: false};
+  const existing = data.find(p => p.name.toLowerCase() === name.toLowerCase());
+  if (existing) { existing.loans.push(loan); $("hint").textContent = `Added to ${existing.name}’s card.`; }
+  else { data.push({id: uid(), name, loans: [loan]}); $("hint").textContent = `Created a card for ${name}.`; }
+  save(); render();
+  $("name").value = ""; $("amount").value = ""; $("reason").value = ""; $("due").value = "";
+  $("date").value = todayISO(); $("name").focus();
+});
+["name","amount","due"].forEach(i => $(i).addEventListener("input", () => { $(i).classList.remove("bad"); $("err").textContent = ""; }));
+
+$("date").value = todayISO();
+load(); render();
+</script>
+</body>
+</html>
